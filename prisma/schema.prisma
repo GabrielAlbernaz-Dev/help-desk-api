@@ -1,0 +1,114 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum role {
+  CUSTOMER
+  AGENT
+  ADMIN
+}
+
+enum ticket_status {
+  OPEN
+  PENDING
+  RESOLVED
+  CLOSED
+}
+
+enum ticket_priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model users {
+  id                         Int                      @id @default(autoincrement()) @map("id")
+  name                       String                   @map("name")
+  email                      String                   @unique @map("email")
+  password                   String                   @map("password")
+  role                       role                     @default(CUSTOMER) @map("role")
+  created_at                 DateTime                 @default(now()) @map("created_at")
+  updated_at                 DateTime                 @default(now()) @map("updated_at")
+  tickets_created            tickets[]                @relation("TicketUserCreator")
+  tickets_assigned           tickets[]                @relation("TicketUserAssigned")
+  knowledge_base_articles    knowledge_base_articles[]
+  ticket_comments            ticket_comments[]
+
+  @@map("users")
+}
+
+model kb_categories {
+  id                           Int                        @id @default(autoincrement()) @map("id")
+  name                         String                     @unique @map("name")
+  description                  String?                    @map("description")
+  knowledge_base_articles      knowledge_base_articles[]
+
+  @@map("kb_categories")
+}
+
+model kb_tags {
+  id           Int             @id @default(autoincrement()) @map("id")
+  name         String          @unique @map("name")
+  article_tags article_tags[]
+
+  @@map("kb_tags")
+}
+
+model knowledge_base_articles {
+  id           Int       @id @default(autoincrement()) @map("id")
+  title        String    @map("title")
+  content      String    @map("content")
+  category_id  Int?      @map("category_id")
+  author_id    Int?      @map("author_id")
+  created_at   DateTime  @default(now()) @map("created_at")
+  updated_at   DateTime  @default(now()) @map("updated_at")
+  category     kb_categories? @relation(fields: [category_id], references: [id])
+  author       users?         @relation(fields: [author_id], references: [id])
+  tags         article_tags[]
+
+  @@map("knowledge_base_articles")
+}
+
+model article_tags {
+  article_id Int                    @map("article_id")
+  tag_id     Int                    @map("tag_id")
+  article    knowledge_base_articles @relation(fields: [article_id], references: [id])
+  tag        kb_tags                @relation(fields: [tag_id], references: [id])
+
+  @@id([article_id, tag_id])
+  @@map("article_tags")
+}
+
+model tickets {
+  id           Int              @id @default(autoincrement()) @map("id")
+  user_id      Int              @map("user_id")
+  subject      String           @map("subject")
+  description  String           @map("description")
+  status       ticket_status    @default(OPEN)    @map("status")
+  priority     ticket_priority  @default(MEDIUM)  @map("priority")
+  assigned_to  Int?             @map("assigned_to")
+  created_at   DateTime         @default(now()) @map("created_at")
+  updated_at   DateTime         @default(now()) @map("updated_at")
+  user         users            @relation("TicketUserCreator", fields: [user_id], references: [id])
+  assigned     users?           @relation("TicketUserAssigned", fields: [assigned_to], references: [id])
+  comments     ticket_comments[]
+
+  @@map("tickets")
+}
+
+model ticket_comments {
+  id           Int    @id @default(autoincrement()) @map("id")
+  ticket_id    Int    @map("ticket_id")
+  user_id      Int    @map("user_id")
+  comment_text String @map("comment_text")
+  created_at   DateTime @default(now()) @map("created_at")
+  ticket       tickets @relation(fields: [ticket_id], references: [id])
+  user         users   @relation(fields: [user_id], references: [id])
+
+  @@map("ticket_comments")
+}
